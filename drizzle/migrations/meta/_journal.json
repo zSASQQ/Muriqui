@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1789997281505,
+      "tag": "0000_muriqui_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790000676218,
+      "tag": "0001_secure_profile_access",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790001366872,
+      "tag": "0002_reference_image_storage",
+      "breakpoints": true
+    }
+  ]
+}
