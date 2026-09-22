@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Users, Plus, Search, ArrowLeft, Check, Ban } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { listarAlunos, criarAluno, definirAcesso } from "@/lib/admin.functions";
+import { supabase } from "@/integrations/supabase/client";
 import { Marca } from "@/components/Marca";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,16 @@ export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Alunos — muriqui" }] }),
   component: AdminPage,
 });
+
+type Aluno = {
+  id: string;
+  email: string;
+  nome: string | null;
+  acesso_liberado: boolean;
+  origem: string;
+  is_admin: boolean;
+  created_at: string;
+};
 
 function AdminPage() {
   const { user, perfil, carregando, sair } = useAuth();
@@ -57,11 +67,26 @@ function Painel({ onSair }: { onSair: () => void }) {
 
   const { data: alunos = [], isLoading } = useQuery({
     queryKey: ["alunos"],
-    queryFn: () => listarAlunos(),
+    queryFn: async (): Promise<Aluno[]> => {
+      // Leitura direta com RLS: a política "admin ve todos perfis" libera todos os perfis para admins.
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, email, nome, acesso_liberado, origem, is_admin, created_at")
+        .order("created_at", { ascending: false });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as unknown as Aluno[];
+    },
   });
 
   const criar = useMutation({
-    mutationFn: () => criarAluno({ data: { nome, email, senha } }),
+    mutationFn: async () => {
+      // Criar conta usa a chave secreta → roda numa função do Supabase (Edge Function).
+      const { data, error } = await supabase.functions.invoke("criar-aluno", {
+        body: { nome, email, senha },
+      });
+      if (error) throw new Error((data as { error?: string })?.error || error.message);
+      if (data && (data as { error?: string }).error) throw new Error((data as { error?: string }).error);
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["alunos"] });
       setNome("");
@@ -73,7 +98,14 @@ function Painel({ onSair }: { onSair: () => void }) {
   });
 
   const acesso = useMutation({
-    mutationFn: (v: { id: string; liberado: boolean }) => definirAcesso({ data: v }),
+    mutationFn: async (v: { id: string; liberado: boolean }) => {
+      // Update direto com RLS: a política "admin atualiza perfis" permite ao admin liberar/bloquear.
+      const { error } = await supabase
+        .from("profiles")
+        .update({ acesso_liberado: v.liberado } as never)
+        .eq("id", v.id);
+      if (error) throw new Error(error.message);
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["alunos"] }),
     onError: (e: Error) => toast.error(e.message),
   });
