@@ -1,6 +1,8 @@
-// Edge Function do Supabase: cria um aluno (conta + acesso liberado).
+// Edge Function do Supabase: gerência de alunos (criar e excluir).
 // Usa a chave de serviço (disponível no ambiente do Supabase) e só executa
-// se quem chamou for um administrador. Nunca expõe segredo ao navegador.
+// se quem chamou for administrador. Nunca expõe segredo ao navegador.
+//
+// Publicada no Supabase com o slug "hyper-endpoint".
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const cors = {
@@ -30,24 +32,40 @@ Deno.serve(async (req) => {
     if (!token) return json({ error: "Sem autenticação." }, 401);
     const { data: userData, error: userErr } = await admin.auth.getUser(token);
     if (userErr || !userData.user) return json({ error: "Sessão inválida." }, 401);
+    const chamador = userData.user;
 
     // 2) Confere se é administrador.
     const { data: perfil } = await admin
       .from("profiles")
       .select("is_admin")
-      .eq("id", userData.user.id)
+      .eq("id", chamador.id)
       .single();
     if (!perfil?.is_admin) return json({ error: "Acesso restrito a administradores." }, 403);
 
-    // 3) Valida a entrada.
     const body = await req.json().catch(() => ({}));
+    const acao = String(body.acao ?? "criar");
+
+    // ---- EXCLUIR ALUNO ----
+    if (acao === "excluir") {
+      const id = String(body.id ?? "");
+      if (!id) return json({ error: "Aluno não informado." }, 400);
+      if (id === chamador.id) return json({ error: "Você não pode excluir a si mesmo." }, 400);
+
+      // Remove os projetos do aluno (em cascata: itens e referências).
+      await admin.from("projetos").delete().eq("user_id", id);
+      // Remove a conta (em cascata: o perfil).
+      const { error: delErr } = await admin.auth.admin.deleteUser(id);
+      if (delErr) return json({ error: delErr.message }, 400);
+      return json({ ok: true });
+    }
+
+    // ---- CRIAR ALUNO (padrão) ----
     const email = String(body.email ?? "").trim().toLowerCase();
     const senha = String(body.senha ?? "");
     const nome = String(body.nome ?? "").trim() || null;
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ error: "E-mail inválido." }, 400);
     if (senha.length < 6) return json({ error: "A senha deve ter ao menos 6 caracteres." }, 400);
 
-    // 4) Cria a conta já confirmada.
     const { data: criado, error: createErr } = await admin.auth.admin.createUser({
       email,
       password: senha,
@@ -61,7 +79,6 @@ Deno.serve(async (req) => {
       return json({ error: msg }, 400);
     }
 
-    // 5) Garante acesso liberado e origem "manual".
     if (criado.user) {
       await admin
         .from("profiles")

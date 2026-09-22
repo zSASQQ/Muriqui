@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Users, Plus, Search, ArrowLeft, Check, Ban } from "lucide-react";
+import { Users, Plus, Search, ArrowLeft, Check, Ban, Trash2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Marca } from "@/components/Marca";
@@ -60,10 +60,12 @@ function AdminPage() {
 
 function Painel({ onSair }: { onSair: () => void }) {
   const qc = useQueryClient();
+  const { user } = useAuth();
   const [busca, setBusca] = useState("");
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
+  const [confirmando, setConfirmando] = useState<string | null>(null);
 
   const { data: alunos = [], isLoading } = useQuery({
     queryKey: ["alunos"],
@@ -108,6 +110,23 @@ function Painel({ onSair }: { onSair: () => void }) {
       if (error) throw new Error(error.message);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["alunos"] }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const excluir = useMutation({
+    mutationFn: async (id: string) => {
+      // Excluir conta usa a chave secreta → mesma função do Supabase ("hyper-endpoint").
+      const { data, error } = await supabase.functions.invoke("hyper-endpoint", {
+        body: { acao: "excluir", id },
+      });
+      if (error) throw new Error((data as { error?: string })?.error || error.message);
+      if (data && (data as { error?: string }).error) throw new Error((data as { error?: string }).error);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["alunos"] });
+      setConfirmando(null);
+      toast.success("Aluno excluído.");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -250,6 +269,32 @@ function Painel({ onSair }: { onSair: () => void }) {
                         </>
                       )}
                     </Button>
+
+                    {a.id !== user?.id &&
+                      (confirmando === a.id ? (
+                        <span className="flex items-center gap-1">
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            disabled={excluir.isPending}
+                            onClick={() => excluir.mutate(a.id)}
+                          >
+                            {excluir.isPending ? "Excluindo…" : "Confirmar"}
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => setConfirmando(null)}>
+                            Não
+                          </Button>
+                        </span>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`Excluir ${a.nome ?? a.email}`}
+                          onClick={() => setConfirmando(a.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      ))}
                   </div>
                 </li>
               ))}
