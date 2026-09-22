@@ -81,7 +81,8 @@ function Painel({ onSair }: { onSair: () => void }) {
   const criar = useMutation({
     mutationFn: async () => {
       // Criar conta usa a chave secreta → roda numa função do Supabase (Edge Function).
-      const { data, error } = await supabase.functions.invoke("criar-aluno", {
+      // Slug publicado no Supabase: "hyper-endpoint".
+      const { data, error } = await supabase.functions.invoke("hyper-endpoint", {
         body: { nome, email, senha },
       });
       if (error) throw new Error((data as { error?: string })?.error || error.message);
