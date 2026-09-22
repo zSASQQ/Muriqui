@@ -50,10 +50,10 @@ function AppLayout() {
     );
   }
 
-  return <Estudio onSair={() => void sair()} nome={perfil?.nome ?? null} />;
+  return <Estudio onSair={() => void sair()} nome={perfil?.nome ?? null} isAdmin={!!perfil?.is_admin} />;
 }
 
-function Estudio({ onSair, nome }: { onSair: () => void; nome: string | null }) {
+function Estudio({ onSair, nome, isAdmin }: { onSair: () => void; nome: string | null; isAdmin: boolean }) {
   const { projeto, carregando, salvar } = useProjeto();
   const { itens } = useItens(projeto?.id);
   const navigate = useNavigate();
@@ -91,6 +91,7 @@ function Estudio({ onSair, nome }: { onSair: () => void; nome: string | null }) 
             orcamento={orcamento}
             gasto={gasto}
             onSair={onSair}
+            isAdmin={isAdmin}
           />
         </aside>
 

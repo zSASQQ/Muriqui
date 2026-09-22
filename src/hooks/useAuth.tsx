@@ -8,6 +8,7 @@ export type Perfil = {
   nome: string | null;
   acesso_liberado: boolean;
   origem: string;
+  is_admin: boolean;
 };
 
 type AuthValue = {
@@ -27,12 +28,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [carregando, setCarregando] = useState(true);
 
   const buscarPerfil = async (userId: string) => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("id, email, nome, acesso_liberado, origem")
-      .eq("id", userId)
-      .maybeSingle();
-    setPerfil((data as Perfil) ?? null);
+    // select("*") é resiliente: se a coluna is_admin ainda não existir no banco,
+    // a query não quebra (is_admin apenas fica indefinido → tratado como false).
+    const { data } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
+    if (!data) {
+      setPerfil(null);
+      return;
+    }
+    const p = data as Record<string, unknown>;
+    setPerfil({
+      id: String(p["id"]),
+      email: String(p["email"]),
+      nome: (p["nome"] as string | null) ?? null,
+      acesso_liberado: !!p["acesso_liberado"],
+      origem: String(p["origem"] ?? "manual"),
+      is_admin: !!p["is_admin"],
+    });
   };
 
   useEffect(() => {

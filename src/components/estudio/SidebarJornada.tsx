@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Sparkles, CircleCheck } from "lucide-react";
+import { Sparkles, CircleCheck, Users } from "lucide-react";
 import { JORNADA } from "@/lib/jornada";
 import { brl } from "@/lib/passos";
 import { cn } from "@/lib/utils";
@@ -10,9 +10,10 @@ type Props = {
   orcamento: number;
   gasto: number;
   onSair: () => void;
+  isAdmin: boolean;
 };
 
-export function SidebarJornada({ numeroAtual, concluidos, orcamento, gasto, onSair }: Props) {
+export function SidebarJornada({ numeroAtual, concluidos, orcamento, gasto, onSair, isAdmin }: Props) {
   const pct = orcamento > 0 ? Math.min(100, Math.round((gasto / orcamento) * 100)) : 0;
 
   return (
@@ -66,6 +67,21 @@ export function SidebarJornada({ numeroAtual, concluidos, orcamento, gasto, onSa
           })}
         </ul>
       </nav>
+
+      {isAdmin && (
+        <Link
+          to="/admin"
+          className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors hover:bg-card/60"
+        >
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent/12 text-accent">
+            <Users className="h-[18px] w-[18px]" />
+          </span>
+          <span>
+            <span className="block text-foreground/90">Alunos</span>
+            <span className="block text-xs text-muted-foreground">Gerenciar acessos</span>
+          </span>
+        </Link>
+      )}
 
       <div className="mt-auto papel p-4">
         <div className="flex items-center justify-between">
