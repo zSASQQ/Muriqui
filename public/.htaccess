@@ -1,0 +1,25 @@
+# SPA (site estático) — servir index.html para qualquer rota do app.
+# Arquivos e pastas reais (assets, imagens) são servidos direto;
+# qualquer outra URL cai no index.html, que faz o roteamento no navegador.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Se o arquivo ou pasta existe de verdade, serve direto.
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Caso contrário, entrega o index.html (SPA).
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+# Cache dos assets com hash (arquivos versionados nunca mudam de conteúdo).
+<IfModule mod_headers.c>
+  <FilesMatch "\.(js|css|woff2?|png|jpg|jpeg|gif|svg|ico)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+  <FilesMatch "\.html$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+</IfModule>
